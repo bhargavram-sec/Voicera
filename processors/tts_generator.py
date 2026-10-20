@@ -76,11 +76,9 @@ class TTSGenerator:
         self.mms_model = None
         self.mms_tokenizer = None
         
-        if not self.use_elevenlabs and MMS_AVAILABLE and self.mms_code:
-            self.use_mms = True
-            logger.info(f"Will use MMS TTS model for language: {self.mms_code} as primary natural voice.")
-        elif not self.use_elevenlabs:
-            logger.info(f"Initialized Edge TTS for {language_code} with voice: {self.edge_voice}")
+        # Prefer Edge TTS by default for fast, natural neural speech
+        self.use_mms = False
+        logger.info(f"Initialized Edge TTS for {language_code} with voice: {self.edge_voice}")
 
     async def _generate_edge_tts(self, text: str, output_path: str, rate: str = "+0%") -> None:
         """Generate using Edge TTS"""

@@ -7,7 +7,8 @@ Handles text translation while preserving technical terms.
 import re
 import logging
 from typing import List, Dict, Tuple, Any
-from deep_translator import GoogleTranslator
+import requests
+from deep_translator import GoogleTranslator, MyMemoryTranslator
 from utils.config import TECHNICAL_TERMS
 
 # Configure logging
@@ -95,78 +96,59 @@ class TranslationEngine:
             
         return text
 
-    def translate_segment(self, segment: Dict[str, Any]) -> Dict[str, Any]:
+    def _translate_text(self, text: str) -> str:
         """
-        Translate a single segment preserving technical terms.
-        
-        Args:
-            segment: A dictionary segment from the transcriber.
-            
-        Returns:
-            Dictionary with translation details.
+        Translates text using multi-tier fallback:
+        1. Google Web API (direct gtx endpoint - fast, reliable, no 429)
+        2. MyMemoryTranslator
+        3. deep-translator GoogleTranslator
         """
-        original_text = segment['text']
-        start_time = segment['start']
-        end_time = segment['end']
-        duration = end_time - start_time
-        
-        # If languages match or translator broken, return original
-        if self.skip_translation or not self.translator:
-            logger.info(f"Skipping translation (Same Lang or No Translator): {original_text[:20]}...")
-            return {
-                "original_text": original_text,
-                "translated_text": original_text,
-                "preserved_terms": [],
-                "expansion_ratio": 1.0,
-                "start": start_time,
-                "end": end_time,
-                "duration": duration,
-                "id": segment.get("id")
-            }
-        
+        # Tier 1: Direct Google API endpoint
         try:
-            # 1. Mask technical terms
-            masked_text, mapping = self._replace_terms_with_placeholders(original_text)
-            
-            # 2. Translate
-            # deep-translator handles limits? Usually text segments are short enough.
-            translated_text_masked = self.translator.translate(masked_text)
-            
-            # If API returns None or empty
-            if not translated_text_masked:
-                raise ValueError("Translation returned empty response")
-
-            # 3. Restore terms
-            final_text = self._restore_terms(translated_text_masked, mapping)
-            
-            # 4. Check length/expansion
-            expansion_ratio = len(final_text) / len(original_text) if len(original_text) > 0 else 1.0
-            
-            return {
-                "original_text": original_text,
-                "translated_text": final_text,
-                "preserved_terms": list(mapping.values()),
-                "expansion_ratio": expansion_ratio,
-                "start": start_time,
-                "end": end_time,
-                "duration": duration,
-                "id": segment.get("id")
+            params = {
+                'client': 'gtx',
+                'sl': self.source_lang if self.source_lang != 'auto' else 'auto',
+                'tl': self.target_lang,
+                'dt': 't',
+                'q': text
             }
-            
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+            resp = requests.get(
+                'https://translate.googleapis.com/translate_a/single',
+                params=params,
+                headers=headers,
+                timeout=10
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                translated = ''.join(item[0] for item in data[0] if item and item[0])
+                if translated and translated.strip():
+                    return translated.strip()
         except Exception as e:
-            logger.error(f"Translation error source={self.source_lang} target={self.target_lang} for segment {segment.get('id')}: {e}")
-            # Fallback: return original text if translation fails
-            return {
-                "original_text": original_text,
-                "translated_text": original_text, # Fallback
-                "preserved_terms": [],
-                "expansion_ratio": 1.0,
-                "start": start_time,
-                "end": end_time,
-                "duration": duration,
-                "id": segment.get("id"),
-                "error": str(e)
-            }
+            logger.warning(f"Tier 1 translation failed: {e}")
+
+        # Tier 2: MyMemory Translator
+        try:
+            src = self.source_lang if self.source_lang != 'auto' else 'en'
+            mm_translator = MyMemoryTranslator(source=src, target=self.target_lang)
+            res = mm_translator.translate(text)
+            if res and res.strip():
+                return res.strip()
+        except Exception as e:
+            logger.warning(f"Tier 2 (MyMemory) failed: {e}")
+
+        # Tier 3: deep-translator GoogleTranslator
+        if self.translator:
+            try:
+                res = self.translator.translate(text)
+                if res and res.strip():
+                    return res.strip()
+            except Exception as e:
+                logger.warning(f"Tier 3 (GoogleTranslator) failed: {e}")
+
+        raise RuntimeError(f"All translation tiers failed for text: {text[:30]}")
 
     def _expand_numbers(self, text: str, lang_code: str) -> str:
         """
@@ -246,9 +228,9 @@ class TranslationEngine:
         end_time = segment['end']
         duration = end_time - start_time
         
-        # If languages match or translator broken, return original
-        if self.skip_translation or not self.translator:
-            logger.info(f"Skipping translation (Same Lang or No Translator): {original_text[:20]}...")
+        # If languages match, return original
+        if self.skip_translation:
+            logger.info(f"Skipping translation (Same Lang): {original_text[:20]}...")
             return {
                 "original_text": original_text,
                 "translated_text": original_text,
@@ -264,8 +246,8 @@ class TranslationEngine:
             # 1. Mask technical terms
             masked_text, mapping = self._replace_terms_with_placeholders(original_text)
             
-            # 2. Translate
-            translated_text_masked = self.translator.translate(masked_text)
+            # 2. Translate using multi-tier fallback
+            translated_text_masked = self._translate_text(masked_text)
             
             if not translated_text_masked:
                 raise ValueError("Translation returned empty response")
