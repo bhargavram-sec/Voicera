@@ -12,6 +12,10 @@ import torch
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Set optimal CPU thread count for Whisper transcription
+if hasattr(os, "cpu_count") and os.cpu_count():
+    torch.set_num_threads(os.cpu_count())
+
 # Load models lazily
 MODELS = {}
 DEVICE = "cpu" # Force CPU for Mac stability
@@ -78,7 +82,11 @@ def transcribe_audio(audio_path: str, source_lang: str = None, model_size: str =
         # word_timestamps=True is CRITICAL for sync
         transcribe_opts = {
             "word_timestamps": True,
-            "fp16": False
+            "fp16": False,
+            "condition_on_previous_text": False,
+            "temperature": (0.0, 0.2),
+            "beam_size": 1,
+            "best_of": 1
         }
         if source_lang:
             transcribe_opts["language"] = source_lang

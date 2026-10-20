@@ -55,7 +55,7 @@ def download_video(url, output_path):
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         ydl.download([url])
 
-def process_video_task(job_id, video_path, target_lang, voice_gender, sync_mode=False, source_lang=None, audio_only=False, model_size="medium"):
+def process_video_task(job_id, video_path, target_lang, voice_gender, sync_mode=False, source_lang=None, audio_only=False, model_size="small"):
     """
     Background task to process the video.
     """
@@ -225,7 +225,7 @@ def upload_video():
     sync_mode = request.form.get('sync_mode') == 'true'
     source_lang = request.form.get('source_lang')
     audio_only = request.form.get('audio_only') == 'true'
-    model_size = request.form.get('model_size', 'medium')
+    model_size = request.form.get('model_size', 'small')
     if source_lang == 'auto':
         source_lang = None
     
@@ -268,7 +268,7 @@ def upload_url():
     sync_mode = data.get('sync_mode', False)
     source_lang = data.get('source_lang')
     audio_only = data.get('audio_only', False)
-    model_size = data.get('model_size', 'medium')
+    model_size = data.get('model_size', 'small')
     if source_lang == 'auto':
         source_lang = None
 

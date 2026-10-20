@@ -351,14 +351,14 @@ async function startProcess() {
         if (curMode === 'url') {
             const url = urlInp ? urlInp.value.trim() : '';
             if (!url) { alert('Please enter a URL.'); return }
-            const r = await fetch('/api/upload-url', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, language: selLang, gender: selGender, sync_mode: syncMode, source_lang: srcLang, audio_only: audioOnly, model_size: 'medium' }) });
+            const r = await fetch('/api/upload-url', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, language: selLang, gender: selGender, sync_mode: syncMode, source_lang: srcLang, audio_only: audioOnly, model_size: 'small' }) });
             const d = await r.json(); if (!d.success) { showView('errorView'); const errEl = document.getElementById('err-msg'); if (errEl) errEl.textContent = d.error; return } jobId = d.job_id;
         } else {
             const vIn = document.getElementById('videoInput');
             const aIn = document.getElementById('audioInput');
             const inp = curMode === 'video' ? vIn : aIn;
             if (!inp || !inp.files[0]) { alert('Please select a file.'); return }
-            const fd = new FormData(); fd.append('video', inp.files[0]); fd.append('language', selLang); fd.append('gender', selGender); fd.append('sync_mode', syncMode); fd.append('source_lang', srcLang); fd.append('audio_only', audioOnly); fd.append('model_size', 'medium');
+            const fd = new FormData(); fd.append('video', inp.files[0]); fd.append('language', selLang); fd.append('gender', selGender); fd.append('sync_mode', syncMode); fd.append('source_lang', srcLang); fd.append('audio_only', audioOnly); fd.append('model_size', 'small');
             const r = await fetch('/api/upload', { method: 'POST', body: fd }); const d = await r.json(); if (!d.success) { showView('errorView'); const errEl = document.getElementById('err-msg'); if (errEl) errEl.textContent = d.error; return } jobId = d.job_id;
         }
     } catch (e) { showView('errorView'); const errEl = document.getElementById('err-msg'); if (errEl) errEl.textContent = e.message; return }
