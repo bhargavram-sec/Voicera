@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voicera — Speak Every Language</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=60">
+</head>
+
+<body>
+
+    <div id="cursor"></div>
+    <div id="cursor-dot"></div>
+
+    <nav>
+        <span class="nav-logo">Voicera</span>
+        <div class="nav-links">
+            <a href="#showcase-wrap">How it works</a>
+            <a href="#studio">Studio</a>
+        </div>
+    </nav>
+
+    <!-- HERO 3D -->
+    <section id="hero-3d">
+        <!-- Grain Overlay -->
+        <div class="grain-overlay"></div>
+
+        <!-- Dynamic Ghost Text -->
+        <div class="ghost-text-wrap">
+            <span class="ghost-text" id="ghostText"></span>
+        </div>
+
+        <!-- Top Left Brand -->
+        <div class="brand-label">VOICERA STUDIO</div>
+
+        <!-- 3D Carousel (3 slots, dynamically populated) -->
+        <div class="carousel-3d" id="carousel3d">
+            <!-- Slot 0 (LEFT) -->
+            <div class="c-item" id="slot0" data-pos="left">
+                <img class="c-static" id="slotImg0" src="" alt="Robot" draggable="false">
+            </div>
+
+            <!-- Slot 1 (CENTER) — has Spline canvas -->
+            <div class="c-item" id="slot1" data-pos="center">
+                <img class="c-static" id="slotImg1" src="" alt="Robot" draggable="false">
+                <div class="spline-wrap">
+                    <canvas id="spline-canvas"></canvas>
+                    <div class="logo-hider"></div>
+                </div>
+            </div>
+
+            <!-- Slot 2 (RIGHT) -->
+            <div class="c-item" id="slot2" data-pos="right">
+                <img class="c-static" id="slotImg2" src="" alt="Robot" draggable="false">
+            </div>
+        </div>
+
+        <!-- Floating Speech Bubbles -->
+        <div id="bubble-container"></div>
+
+
+        <div class="hero-bottom-center">
+            <div class="hero-lang-name" id="heroLangName"></div>
+            <div class="lang-dots" id="langDots"></div>
+            <div class="hero-nav">
+                <button id="btn-prev" class="nav-btn">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                </button>
+                <button id="btn-next" class="nav-btn">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- SUB-HERO 3D SHOWCASE -->
+    <section id="showcase-3d-sub">
+        <div class="showcase-sub-inner">
+            <div class="showcase-sub-hdr">
+                <span class="showcase-sub-eyebrow">Interactive Module</span>
+                <h2 class="showcase-sub-title">Engage the Voice Core</h2>
+                <p class="showcase-sub-desc">Interact with the voice frequency synthesizer below to visualize real-time speech translation wave matrices.</p>
+            </div>
+            <div class="showcase-sub-canvas-wrap">
+                <canvas id="spline-canvas-subhero"></canvas>
+                <div class="logo-hider-sub"></div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- AUDIO DEMO STRIP -->
+    <div id="dec-strip">
+        <button id="dec-btn" onclick="playDeception()">
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Hear Voicera in action
+        </button>
+        <span id="dec-status">Press play — no upload needed</span>
+    </div>
+
+    <!-- STUDIO -->
+    <section id="studio">
+        <div class="studio-inner">
+            <!-- Left: Heading -->
+            <div class="studio-lhs">
+                <div class="studio-eyebrow">The Studio</div>
+                <h2 class="studio-title">Dub your video.<br><span class="dim">Right now.</span></h2>
+                <p class="studio-sub">Upload once. Get back a perfectly dubbed video in your chosen language — voice, tone, and timing preserved.</p>
+                <div class="studio-badges">
+                    <span class="s-badge">🎙 Whisper AI</span>
+                    <span class="s-badge">🌐 12 Languages</span>
+                    <span class="s-badge">⚡ Edge TTS</span>
+                </div>
+            </div>
+
+            <!-- Right: App Window -->
+            <div class="studio-rhs">
+                <div class="app-win">
+                    <div class="win-chrome">
+                        <div class="tl" style="background:#ff5f57"></div>
+                        <div class="tl" style="background:#febc2e"></div>
+                        <div class="tl" style="background:#28c840"></div>
+                        <span class="win-title">Voicera Studio</span>
+                    </div>
+                    <div class="win-body">
+
+                        <!-- Sidebar -->
+                        <div class="sidebar">
+                            <div class="sb-section">
+                                <p class="sl">Source Language</p>
+                                <select id="sourceLang" class="sb-select">
+                                    <option value="auto">Auto-detect</option>
+                                    {% for code, lang in languages.items() %}
+                                    <option value="{{ code }}">{{ lang.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="sb-section">
+                                <p class="sl">Target Language</p>
+                                <div class="lang-grid" id="langGrid">
+                                    {% for code, lang in languages.items() %}
+                                    <button type="button" class="lc" data-value="{{ code }}"
+                                        onclick="selectLanguage('{{ code }}')">{{ lang.name }}</button>
+                                    {% endfor %}
+                                </div>
+                                <input type="hidden" id="selectedLang" value="hi">
+                            </div>
+                            <div class="sb-section">
+                                <p class="sl">Voice Persona</p>
+                                <div class="vc-row">
+                                    <button type="button" id="btnFemale" class="vc on" onclick="selectGender('female')">
+                                        <div class="vc-n">Female</div>
+                                        <div class="vc-s">Soft · Natural</div>
+                                    </button>
+                                    <button type="button" id="btnMale" class="vc" onclick="selectGender('male')">
+                                        <div class="vc-n">Male</div>
+                                        <div class="vc-s">Deep · Clear</div>
+                                    </button>
+                                </div>
+                                <input type="hidden" id="selectedGender" value="female">
+                            </div>
+                            <div class="sb-section">
+                                <p class="sl">Options</p>
+                                <div class="tog-row"><span class="tog-l">Strict Lip-Sync</span><label class="tog"><input type="checkbox" id="syncMode"><span class="tog-s"></span></label></div>
+                                <div class="tog-row"><span class="tog-l">Audio Only</span><label class="tog"><input type="checkbox" id="audioOnly"><span class="tog-s"></span></label></div>
+                            </div>
+                            <div class="sb-ver">v2.1.0</div>
+                        </div>
+
+                        <!-- Content -->
+                        <div class="app-content">
+
+                            <!-- UPLOAD -->
+                            <div id="uploadView" class="upload-wrap fade-up">
+                                <div class="tab-row">
+                                    <button class="at on" id="tabVideo" onclick="switchMode('video')">Video</button>
+                                    <button class="at" id="tabAudio" onclick="switchMode('audio')">Audio</button>
+                                    <button class="at" id="tabUrl" onclick="switchMode('url')">URL</button>
+                                </div>
+                                <div id="modeVideo" class="drop">
+                                    <input type="file" id="videoInput" accept="video/*">
+                                    <div class="drop-icon"><svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg></div>
+                                    <div class="drop-title">Drop your video</div>
+                                    <div class="drop-sub">MP4 · MOV · AVI — up to 100 MB</div>
+                                    <span class="fname" id="videoNameDisplay"></span>
+                                </div>
+                                <div id="modeAudio" class="drop hidden">
+                                    <input type="file" id="audioInput" accept="audio/*">
+                                    <div class="drop-icon" style="background:rgba(255,149,0,.08);border-color:rgba(255,149,0,.13);color:rgba(255,149,0,.8)"><svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg></div>
+                                    <div class="drop-title">Drop your audio</div>
+                                    <div class="drop-sub">MP3 · WAV · M4A · FLAC</div>
+                                    <span class="fname" id="audioNameDisplay"></span>
+                                </div>
+                                <div id="modeUrl" class="hidden" style="margin-bottom:4px">
+                                    <div class="url-wrap">
+                                        <div class="url-ico"><svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.1-1.1m.758-4.9a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg></div>
+                                        <input type="url" id="urlInput" class="url-f" placeholder="YouTube, Vimeo, or direct link…">
+                                    </div>
+                                    <div class="url-h">Supports most major platforms · Long videos may take extra time</div>
+                                </div>
+                                <button class="start-btn" onclick="startProcess()">
+                                    <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                    Start Dubbing
+                                </button>
+                            </div>
+
+                            <!-- PROCESS -->
+                            <div id="processView" class="proc-wrap hidden">
+                                <canvas id="fp-c"></canvas>
+                                <div class="pb-wrap">
+                                    <div class="pb-fill" id="pb-fill"></div>
+                                </div>
+                                <div class="proc-t" id="proc-t">Analyzing…</div>
+                                <div class="proc-s">AI pipeline is processing your file</div>
+                                <div class="hm-card">
+                                    <div class="hm-hdr">
+                                        <span class="hm-lbl">Transcript Confidence</span>
+                                        <div class="hm-leg">
+                                            <span class="hm-li"><span class="hm-ld" style="background:#34c759"></span>High</span>
+                                            <span class="hm-li"><span class="hm-ld" style="background:#ff9500"></span>Mid</span>
+                                            <span class="hm-li"><span class="hm-ld" style="background:#ff3b30"></span>Low</span>
+                                        </div>
+                                    </div>
+                                    <div id="hm-words"><span style="font-size:.68rem;color:rgba(255,255,255,.18);font-style:italic">Waiting for transcription…</span></div>
+                                    <div class="mn-row"><span class="mn-l">Meaning preserved</span><span id="mn-pct">—</span></div>
+                                </div>
+                                <div class="steps">
+                                    <div class="sr" id="step1"><div class="sc-dot">1</div><span>Audio Extraction</span></div>
+                                    <div class="sr" id="step2"><div class="sc-dot">2</div><span>Speech-to-Text (Whisper)</span></div>
+                                    <div class="sr" id="step3"><div class="sc-dot">3</div><span>Translation &amp; Adaptation</span></div>
+                                    <div class="sr" id="step4"><div class="sc-dot">4</div><span>Voice Synthesis &amp; Sync</span></div>
+                                </div>
+                            </div>
+
+                            <!-- RESULT -->
+                            <div id="resultView" class="res-wrap hidden">
+                                <div class="reach-card">
+                                    <div class="reach-ey">Your video is now accessible to</div>
+                                    <div id="reach-n">0</div>
+                                    <div id="reach-l"></div>
+                                    <div class="reach-tl">One dub. One billion closer.</div>
+                                </div>
+                                <div class="suc-row">
+                                    <div class="suc-ico"><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" /></svg></div>
+                                    <div>
+                                        <div class="suc-t">Dubbing Complete</div>
+                                        <div class="suc-s">Your file is ready to download</div>
+                                    </div>
+                                </div>
+                                <div class="vid-prev"><video id="preview-player" controls></video></div>
+                                <div class="res-acts">
+                                    <a id="dl-btn" href="#" class="dl-btn"><svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>Download</a>
+                                    <button class="new-btn" onclick="location.reload()">New Project</button>
+                                </div>
+                            </div>
+
+                            <!-- ERROR -->
+                            <div id="errorView" class="err-wrap hidden">
+                                <div class="err-ico"><svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg></div>
+                                <div class="err-t">Processing Failed</div>
+                                <div id="err-msg"></div>
+                                <button class="retry-btn" onclick="location.reload()">Try Again</button>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer id="footer">
+        <div class="footer-inner">
+            <div class="footer-top">
+                <div class="footer-brand">
+                    <span class="footer-logo">Voicera</span>
+                    <p class="footer-tagline">Your voice. Every language.</p>
+                </div>
+                <div class="footer-links">
+                    <div class="footer-col">
+                        <div class="footer-col-title">Product</div>
+                        <a href="#studio">Studio</a>
+                        <a href="#dec-strip">Demo</a>
+                    </div>
+                    <div class="footer-col">
+                        <div class="footer-col-title">Languages</div>
+                        <a href="#">Hindi · Telugu</a>
+                        <a href="#">Tamil · Kannada</a>
+                        <a href="#">Malayalam · English</a>
+                    </div>
+                    <div class="footer-col">
+                        <div class="footer-col-title">Powered by</div>
+                        <a href="#">OpenAI Whisper</a>
+                        <a href="#">Microsoft Edge TTS</a>
+                        <a href="#">Flask</a>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <span class="footer-copy">© 2026 Voicera. All rights reserved.</span>
+                <span class="footer-copy dim">Built with AI · Made in India 🇮🇳</span>
+            </div>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=11"></script>
+
+    <!-- Carousel Logic (runs immediately, no external dependencies) -->
+    <script>
+        // ── LANGUAGE CONFIG ──
+        const LANGS = [
+            { name: 'English',   native: 'English',   ghost: 'VOICERA',    color: '#00D4FF',
+              words: ['Hello!', 'Welcome!', 'Translate!', 'Try now!', 'Hear it!'] },
+            { name: 'Hindi',     native: 'हिन्दी',   ghost: 'वॉइसरा',    color: '#FF6B35',
+              words: ['नमस्ते!', 'स्वागत है!', 'अनुवाद करें!', 'अभी आज़माइए!', 'सुनिए!'] },
+            { name: 'Telugu',    native: 'తెలుగు',   ghost: 'వాయిసెరా',  color: '#7B68EE',
+              words: ['నమస్కారం!', 'స్వాగతం!', 'అనువాదించండి!', 'ప్రయత్నించండి!', 'వినండి!'] },
+            { name: 'Tamil',     native: 'தமிழ்',    ghost: 'வாய்ஸ்ரா', color: '#FF1493',
+              words: ['வணக்கம்!', 'வரவேற்கிறோம்!', 'மொழிபெயருங்கள்!', 'முயற்சியுங்கள்!', 'கேளுங்கள்!'] },
+            { name: 'Kannada',   native: 'ಕನ್ನಡ',    ghost: 'ವಾಯ್ಸೆರಾ',  color: '#00E676',
+              words: ['ನಮಸ್ಕಾರ!', 'ಸ್ವಾಗತ!', 'ಅನುವಾದಿಸಿ!', 'ಪ್ರಯತ್ನಿಸಿ!', 'ಕೇಳಿ!'] },
+            { name: 'Malayalam', native: 'മലയാളം',  ghost: 'വോയ്‌സെറ', color: '#FFD700',
+              words: ['നമസ്കാരം!', 'സ്വാഗതം!', 'പരിഭാഷ ചെയ്യൂ!', 'ശ്രമിക്കൂ!', 'കേൾക്കൂ!'] },
+        ];
+        const TOTAL = LANGS.length;
+
+        let activeIndex = 0;
+        let isAnimating = false;
+        let robotSnapshot = '';
+        let bubbleTimers = [];
+
+        const heroSection  = document.getElementById('hero-3d');
+        const ghostText    = document.getElementById('ghostText');
+        const heroLangName = document.getElementById('heroLangName');
+        const langDotsEl   = document.getElementById('langDots');
+        const bubbleCont   = document.getElementById('bubble-container');
+        const slots = [0, 1, 2].map(i => ({
+            el:  document.getElementById('slot' + i),
+            img: document.getElementById('slotImg' + i),
+        }));
+        const btnPrev = document.getElementById('btn-prev');
+        const btnNext = document.getElementById('btn-next');
+        const splineCanvas = document.getElementById('spline-canvas');
+
+        if (heroSection) heroSection.style.backgroundColor = '#000000';
+
+        if (langDotsEl) {
+            LANGS.forEach((lang, i) => {
+                const dot = document.createElement('div');
+                dot.className = 'lang-dot' + (i === 0 ? ' active' : '');
+                dot.style.backgroundColor = lang.color;
+                dot.title = lang.name;
+                dot.addEventListener('click', () => goToLang(i));
+                langDotsEl.appendChild(dot);
+            });
+        }
+
+        function getVisibleIndices() {
+            return [
+                (activeIndex - 1 + TOTAL) % TOTAL,
+                activeIndex,
+                (activeIndex + 1) % TOTAL,
+            ];
+        }
+
+        // ── Bubble system ──
+        function clearBubbles() {
+            bubbleTimers.forEach(clearTimeout);
+            bubbleTimers = [];
+            if (bubbleCont) bubbleCont.innerHTML = '';
+        }
+
+        function spawnWord(text, color, side, startY) {
+            const bubble = document.createElement('div');
+            bubble.className = 'speech-bubble';
+            bubble.textContent = text;
+            const x = side === 'left'
+                ? (16 + Math.random() * 12)
+                : (72 + Math.random() * 12);
+            const drift = side === 'left'
+                ? -(12 + Math.random() * 15)
+                :  (12 + Math.random() * 15);
+            bubble.style.cssText = `
+                left: ${x}%;
+                top: ${startY}%;
+                border-color: ${color};
+                color: ${color};
+                box-shadow: 0 0 14px ${color}35;
+                --drift: ${drift}px;
+                animation: bubbleFloat 2.2s ease-out forwards;
+            `;
+            if (bubbleCont) bubbleCont.appendChild(bubble);
+            const t = setTimeout(() => bubble.remove(), 2400);
+            bubbleTimers.push(t);
+        }
+
+        function spawnLanguageBubbles(lang) {
+            clearBubbles();
+            const yPos = [62, 55, 66, 50, 58];
+            lang.words.forEach((word, i) => {
+                const side = i % 2 === 0 ? 'left' : 'right';
+                const t = setTimeout(() => spawnWord(word, lang.color, side, yPos[i]), i * 700);
+                bubbleTimers.push(t);
+            });
+        }
+
+        function render() {
+            const [leftIdx, centerIdx] = getVisibleIndices();
+            const positions = ['left', 'center', 'right'];
+            const indices   = getVisibleIndices();
+
+            slots.forEach((slot, i) => {
+                if (slot.el) slot.el.setAttribute('data-pos', positions[i]);
+                if (slot.img && robotSnapshot) slot.img.src = robotSnapshot;
+            });
+
+            const centerLang = LANGS[centerIdx];
+            if (ghostText) {
+                ghostText.textContent   = centerLang.ghost;
+                ghostText.style.color   = centerLang.color;
+                ghostText.style.opacity = '0.12';
+            }
+            if (heroLangName) {
+                heroLangName.textContent       = centerLang.native;
+                heroLangName.style.color       = centerLang.color;
+                heroLangName.style.borderColor = centerLang.color;
+                heroLangName.style.boxShadow   = `0 0 12px ${centerLang.color}40`;
+            }
+            if (langDotsEl) {
+                langDotsEl.querySelectorAll('.lang-dot').forEach((dot, i) => {
+                    dot.classList.toggle('active', i === activeIndex);
+                });
+            }
+            spawnLanguageBubbles(centerLang);
+        }
+
+        function navigate(dir) {
+            if (isAnimating) return;
+            isAnimating = true;
+            activeIndex = dir === 'next'
+                ? (activeIndex + 1) % TOTAL
+                : (activeIndex - 1 + TOTAL) % TOTAL;
+            render();
+            setTimeout(() => { isAnimating = false; }, 700);
+        }
+
+        function goToLang(idx) {
+            if (isAnimating || idx === activeIndex) return;
+            isAnimating = true;
+            activeIndex = idx;
+            render();
+            setTimeout(() => { isAnimating = false; }, 700);
+        }
+
+        let autoTimer = setInterval(() => navigate('next'), 4500);
+        function resetAutoRotate() {
+            clearInterval(autoTimer);
+            autoTimer = setInterval(() => navigate('next'), 4500);
+        }
+
+        if (btnPrev) btnPrev.addEventListener('click', () => { navigate('prev'); resetAutoRotate(); });
+        if (btnNext) btnNext.addEventListener('click', () => { navigate('next'); resetAutoRotate(); });
+
+        // Initial render — runs immediately, no waiting for Spline
+        render();
+    </script>
+
+    <!-- Spline 3D (loads asynchronously, does NOT block page) -->
+    <script type="module">
+        try {
+            const { Application } = await import('https://esm.sh/@splinetool/runtime@1.4.5');
+
+            const splineCanvas = document.getElementById('spline-canvas');
+            if (splineCanvas) {
+                const spline = new Application(splineCanvas);
+                spline.load('https://prod.spline.design/mFNuRYaIVaEZIBHU/scene.splinecode').then(() => {
+                    console.log('✅ Spline hero loaded');
+                    setTimeout(() => {
+                        try {
+                            robotSnapshot = splineCanvas.toDataURL('image/png');
+                            console.log('✅ Robot snapshot captured');
+                            render();
+                        } catch (e) {
+                            console.warn('Snapshot failed (cross-origin), using live canvas:', e.message);
+                        }
+                    }, 2000);
+                }).catch(e => {
+                    console.warn('Spline hero load failed:', e);
+                });
+            }
+
+            const splineCanvasSubhero = document.getElementById('spline-canvas-subhero');
+            if (splineCanvasSubhero) {
+                const splineSub = new Application(splineCanvasSubhero);
+                splineSub.load('https://prod.spline.design/iSuU0m4UwnGLtSDQ/scene.splinecode').then(() => {
+                    console.log('✅ Sub-hero Spline loaded');
+                }).catch(e => {
+                    console.warn('Sub-hero Spline load failed:', e);
+                });
+            }
+        } catch (e) {
+            console.warn('Spline runtime failed to load:', e);
+        }
+    </script>
+</body>
+
+</html>
