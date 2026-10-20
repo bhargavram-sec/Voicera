@@ -18,7 +18,7 @@ import shutil
 from utils.config import (
     UPLOAD_FOLDER, OUTPUT_FOLDER, TEMP_FOLDER, LANGUAGES
 )
-from processors.audio_extractor import extract_audio
+from processors.audio_extractor import extract_audio, get_media_duration
 from processors.transcriber import transcribe_audio
 from processors.translator import TranslationEngine
 from processors.tts_generator import TTSGenerator
@@ -159,9 +159,12 @@ def process_video_task(job_id, video_path, target_lang, voice_gender, sync_mode=
         
         synchronizer = AudioSynchronizer(strict_mode=sync_mode)
         
-        total_duration = segments[-1]["end"] if segments else 0
+        media_duration = get_media_duration(video_path)
+        last_seg_end = segments[-1]["end"] if segments else 0
+        total_duration = max(media_duration, last_seg_end)
+        
         merged_audio_path = os.path.join(job_dir, "merged_dubbed.mp3")
-        synchronizer.merge_segments(translated_segments, total_duration + 5, merged_audio_path)
+        synchronizer.merge_segments(translated_segments, total_duration, merged_audio_path)
         
         # 6. Assembly (or Audio Output)
         jobs[job_id]["current_step"] = "Finalizing"

@@ -52,6 +52,7 @@ def assemble_video(original_video: str, dubbed_audio: str, output_path: str) -> 
             "-i", dubbed_audio,
             "-c:v", "copy",
             "-c:a", "aac",
+            "-af", "apad",
             "-map", "0:v:0",
             "-map", "1:a:0",
             "-shortest",

@@ -127,6 +127,19 @@ class AudioSynchronizer:
                 for f in chunk_files:
                     if os.path.exists(f): os.remove(f)
 
+            # If total_duration was specified, ensure audio spans total_duration
+            if total_duration > 0 and os.path.exists(output_path):
+                temp_padded = output_path + ".padded.mp3"
+                pad_cmd = [
+                    "ffmpeg", "-i", output_path,
+                    "-af", f"apad=whole_dur={total_duration}",
+                    "-c:a", "libmp3lame", "-q:a", "2",
+                    "-y", temp_padded
+                ]
+                pad_res = subprocess.run(pad_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                if pad_res.returncode == 0 and os.path.exists(temp_padded):
+                    os.replace(temp_padded, output_path)
+
             return output_path
             
         except Exception as e:

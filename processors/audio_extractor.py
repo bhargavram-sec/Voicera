@@ -78,7 +78,31 @@ def extract_audio(video_path: str, output_path: str) -> str:
         logger.error(error_msg)
         raise RuntimeError(error_msg)
 
+def get_media_duration(file_path: str) -> float:
+    """
+    Get duration of a media file in seconds using ffprobe.
+    """
+    if not os.path.exists(file_path):
+        return 0.0
+    try:
+        command = [
+            "ffprobe",
+            "-v", "error",
+            "-show_entries", "format=duration",
+            "-of", "default=noprint_wrappers=1:nokey=1",
+            file_path
+        ]
+        result = subprocess.run(
+            command,
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        return float(result.stdout.strip())
+    except Exception as e:
+        logger.warning(f"Failed to get duration for {file_path}: {e}")
+        return 0.0
+
 if __name__ == "__main__":
-    # Test execution
-    # Create a dummy test file if needed or mock
     pass
