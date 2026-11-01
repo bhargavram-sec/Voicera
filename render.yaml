@@ -7,3 +7,4 @@ services:
     envVars:
       - key: SARVAM_API_KEY
         sync: false
+
