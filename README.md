@@ -1,5 +1,7 @@
 # Voicera 🎙️
 
+🔗 **Live Demo:** [https://voicera-fiyk.onrender.com/](https://voicera-fiyk.onrender.com/)
+
 **Voicera** is an automated video dubbing pipeline engineered specifically for Indian languages. It combines cloud speech intelligence, conversational translation, and audio-visual synchronization to produce natural-sounding dubbed videos without robotic pacing or artificial vocabulary.
 
 ---
