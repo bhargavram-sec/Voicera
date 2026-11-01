@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: voicera
+    runtime: docker
+    plan: free
+    region: oregon
+    envVars:
+      - key: SARVAM_API_KEY
+        sync: false

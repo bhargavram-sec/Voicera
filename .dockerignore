@@ -1,0 +1,13 @@
+.git
+.venv
+venv
+.env
+.models
+temp/
+outputs/
+uploads/
+__pycache__/
+*.pyc
+.DS_Store
+.idea
+.vscode

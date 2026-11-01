@@ -1,8 +1,8 @@
 Flask>=3.1.0
+gunicorn>=21.2.0
 edge-tts>=7.3.1
 deep-translator>=1.11.4
 numpy
-torch
 requests
 aiohttp
 yt-dlp>=2023.11.16
@@ -10,5 +10,4 @@ num2words
 elevenlabs
 ffmpeg-python
 python-dotenv
-transformers
 scipy
