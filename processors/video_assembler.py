@@ -7,6 +7,7 @@ Combines the dubbed audio with the original video.
 import os
 import subprocess
 import logging
+from processors.audio_extractor import get_media_duration
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -15,6 +16,7 @@ logger = logging.getLogger(__name__)
 def assemble_video(original_video: str, dubbed_audio: str, output_path: str) -> str:
     """
     Replace video audio with dubbed version.
+    If the dubbed audio is slightly longer, gently hold the final video frame so no words are cut off.
     
     Args:
         original_video: Path to input video.
@@ -33,32 +35,39 @@ def assemble_video(original_video: str, dubbed_audio: str, output_path: str) -> 
             
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
             
-        # FFmpeg command
-        # -i video
-        # -i audio
-        # -c:v copy (copy video stream, no re-encode)
-        # -c:a aac (encode audio to AAC)
-        # -map 0:v:0 (take video from first input)
-        # -map 1:a:0 (take audio from second input)
-        # -shortest (finish when shorter stream ends)
-        # -y (overwrite)
+        vid_dur = get_media_duration(original_video)
+        aud_dur = get_media_duration(dubbed_audio)
         
-        # FFmpeg command
-        # Replace audio track with dubbed version
-        
-        command = [
-            "ffmpeg",
-            "-i", original_video,
-            "-i", dubbed_audio,
-            "-c:v", "copy",
-            "-c:a", "aac",
-            "-af", "apad",
-            "-map", "0:v:0",
-            "-map", "1:a:0",
-            "-shortest",
-            "-y",
-            output_path
-        ]
+        # If dubbed audio is longer than original video, pad final video frame
+        if aud_dur > vid_dur + 0.15:
+            diff = aud_dur - vid_dur
+            logger.info(f"Dubbed audio ({aud_dur:.2f}s) is longer than video ({vid_dur:.2f}s). Extending final frame by {diff:.2f}s.")
+            command = [
+                "ffmpeg",
+                "-i", original_video,
+                "-i", dubbed_audio,
+                "-filter_complex", f"[0:v]tpad=stop_mode=clone:stop_duration={diff:.2f}[v]",
+                "-map", "[v]",
+                "-map", "1:a:0",
+                "-c:a", "aac",
+                "-shortest",
+                "-y",
+                output_path
+            ]
+        else:
+            command = [
+                "ffmpeg",
+                "-i", original_video,
+                "-i", dubbed_audio,
+                "-c:v", "copy",
+                "-c:a", "aac",
+                "-af", "apad",
+                "-map", "0:v:0",
+                "-map", "1:a:0",
+                "-shortest",
+                "-y",
+                output_path
+            ]
         
         logger.info(f"Assembling video (dubbed audio only): {original_video} + {dubbed_audio} -> {output_path}")
         

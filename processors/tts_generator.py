@@ -3,19 +3,15 @@ import asyncio
 import logging
 import subprocess
 import json
+import base64
 from typing import Dict, Optional, Any, List
+import requests
+from dotenv import load_dotenv
 import edge_tts
 from utils.config import LANGUAGES
 
-# Try importing HuggingFace MMS VITS
-try:
-    import torch
-    from transformers import VitsModel, AutoTokenizer
-    import scipy.io.wavfile
-    import tempfile
-    MMS_AVAILABLE = True
-except ImportError:
-    MMS_AVAILABLE = False
+# Load environment variables
+load_dotenv()
 
 # Try importing ElevenLabs
 try:
@@ -26,7 +22,8 @@ except ImportError:
 
 """
 TTS Generator Module.
-Generates speech using Microsoft Edge TTS (free) or ElevenLabs (premium).
+Generates speech using Sarvam AI Bulbul (primary for Indian languages),
+Microsoft Edge TTS (fallback), or ElevenLabs (premium).
 Includes audio normalization and smart speed adjustment.
 """
 
@@ -50,7 +47,13 @@ class TTSGenerator:
         if not self.lang_config:
             raise ValueError(f"Unsupported language: {language_code}")
             
-        # Edge TTS Voice
+        # Sarvam AI Config (Primary for Indian languages)
+        self.sarvam_api_key = os.getenv("SARVAM_API_KEY")
+        self.use_sarvam = bool(self.sarvam_api_key)
+        if self.use_sarvam:
+            logger.info(f"Initialized Sarvam AI Bulbul TTS for {language_code} (gender: {voice_gender})")
+            
+        # Edge TTS Voice (Fallback or international languages)
         self.edge_voice = self.lang_config["voices"].get(voice_gender)
         if not self.edge_voice:
             self.edge_voice = list(self.lang_config["voices"].values())[0]
@@ -67,7 +70,7 @@ class TTSGenerator:
                 self.eleven_voice_id = "21m00Tcm4TlvDq8ikWAM" if voice_gender == "female" else "ErXwobaYiN019PkySvjV" 
                 logger.info(f"Initialized ElevenLabs TTS for {language_code}")
             except Exception as e:
-                logger.error(f"Failed to init ElevenLabs client: {e}. Falling back to MMS/Edge TTS.")
+                logger.error(f"Failed to init ElevenLabs client: {e}. Falling back to Sarvam/Edge TTS.")
                 self.use_elevenlabs = False
                 
         # MMS VITS Config (Primary local AI fallback over edge_tts)
@@ -100,43 +103,42 @@ class TTSGenerator:
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, run_eleven)
         
-    async def _generate_mms_tts(self, text: str, output_path: str) -> None:
-        """Generate using HuggingFace MMS VITS models dynamically."""
-        def run_mms():
-            if not self.mms_model:
-                model_name = f"facebook/mms-tts-{self.mms_code}"
-                # Lazy load model into memory
-                self.mms_tokenizer = AutoTokenizer.from_pretrained(model_name)
-                self.mms_model = VitsModel.from_pretrained(model_name)
-                # Optimization for Mac if user has M1/M2/M3
-                if torch.backends.mps.is_available():
-                    self.mms_model.to("mps")
+    async def _generate_sarvam_tts(self, text: str, output_path: str, pace: float = 1.0) -> None:
+        """Generate using Sarvam AI Bulbul TTS (natural Indian voices)."""
+        def run_sarvam():
+            target_lang_code = self.lang_config.get("code", f"{self.language_code}-IN")
+            speaker = "shubh" if self.voice_gender == "male" else "ritu"
             
-            inputs = self.mms_tokenizer(text, return_tensors="pt")
-            
-            if torch.backends.mps.is_available():
-                inputs = {k: v.to("mps") for k, v in inputs.items()}
+            payload = {
+                "inputs": [text],
+                "target_language_code": target_lang_code,
+                "speaker": speaker,
+                "model": "bulbul:v3",
+                "audio_format": "mp3",
+                "speech_sample_rate": 22050
+            }
+            if 0.5 <= pace <= 2.0 and pace != 1.0:
+                payload["pace"] = round(pace, 2)
                 
-            with torch.no_grad():
-                output = self.mms_model(**inputs).waveform
+            headers = {
+                "api-subscription-key": self.sarvam_api_key,
+                "Content-Type": "application/json"
+            }
+            resp = requests.post("https://api.sarvam.ai/text-to-speech", headers=headers, json=payload, timeout=30)
+            if resp.status_code != 200:
+                raise RuntimeError(f"Sarvam TTS failed ({resp.status_code}): {resp.text}")
                 
-            audio_data = output.cpu().numpy().squeeze()
-            
-            # Save to temporary WAV, then ffmpeg it to raw_path (mp3 format)
-            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_wav:
-                scipy.io.wavfile.write(tmp_wav.name, rate=self.mms_model.config.sampling_rate, data=audio_data)
-                tmp_wav_path = tmp_wav.name
+            res_data = resp.json()
+            audios = res_data.get("audios", [])
+            if not audios:
+                raise RuntimeError("Sarvam TTS returned no audio data")
                 
-            # Convert WAV to MP3 using ffmpeg
-            try:
-                cmd = ["ffmpeg", "-i", tmp_wav_path, "-y", output_path]
-                subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            finally:
-                if os.path.exists(tmp_wav_path):
-                    os.remove(tmp_wav_path)
-                    
+            audio_bytes = base64.b64decode(audios[0])
+            with open(output_path, "wb") as f:
+                f.write(audio_bytes)
+
         loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, run_mms)
+        await loop.run_in_executor(None, run_sarvam)
 
     def _normalize_audio(self, input_path: str, output_path: str):
         """
@@ -152,12 +154,11 @@ class TTSGenerator:
             subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except Exception as e:
             logger.error(f"Normalization failed: {e}. Using original.")
-            # Fallback copy
             import shutil
             shutil.copy(input_path, output_path)
 
     def _get_audio_duration(self, file_path: str) -> float:
-        """Get audio duration using ffmpeg because stripped ffprobe lacks show_entries."""
+        """Get audio duration using ffmpeg."""
         try:
             cmd = ["ffmpeg", "-i", file_path]
             result = subprocess.run(cmd, capture_output=True, text=True)
@@ -171,22 +172,22 @@ class TTSGenerator:
             logger.error(f"Failed to get duration for {file_path}: {e}")
         return 0.0
 
-    async def _generate_with_retry(self, text: str, raw_path: str):
-        """Retry logic for generation."""
+    async def _generate_with_retry(self, text: str, raw_path: str, pace: float = 1.0):
+        """Retry logic for generation with dynamic pace."""
         max_retries = 3
+        edge_rate = f"{int((pace - 1.0) * 100):+d}%"
         for attempt in range(max_retries):
             try:
-                if self.use_elevenlabs:
-                    await self._generate_elevenlabs(text, raw_path)
-                elif self.use_mms:
+                if self.use_sarvam:
                     try:
-                        await self._generate_mms_tts(text, raw_path)
+                        await self._generate_sarvam_tts(text, raw_path, pace=pace)
                     except Exception as e:
-                        logger.error(f"MMS TTS failed: {e}. Falling back to Edge TTS.")
-                        self.use_mms = False
-                        await self._generate_edge_tts(text, raw_path)
+                        logger.warning(f"Sarvam TTS attempt {attempt+1} failed: {e}. Trying Edge TTS fallback...")
+                        await self._generate_edge_tts(text, raw_path, rate=edge_rate)
+                elif self.use_elevenlabs:
+                    await self._generate_elevenlabs(text, raw_path)
                 else:
-                    await self._generate_edge_tts(text, raw_path)
+                    await self._generate_edge_tts(text, raw_path, rate=edge_rate)
                 return
             except Exception as e:
                 logger.warning(f"TTS Attempt {attempt+1} failed: {e}")
@@ -196,7 +197,7 @@ class TTSGenerator:
 
     def generate_speech(self, text: str, output_path: str, target_duration: Optional[float] = None) -> Dict[str, Any]:
         """
-        Generate speech, normalize it, and optionally adjust speed (carefully).
+        Generate speech, normalize it, and adjust speed adaptively based on sentence length and video slot.
         """
         try:
             # Check event loop
@@ -211,59 +212,51 @@ class TTSGenerator:
             
             raw_path = output_path.replace(".mp3", "_raw.mp3")
             
-            # 1. Generate Raw Audio
-            loop.run_until_complete(self._generate_with_retry(text, raw_path))
+            # 1. Compute dynamic pace according to sentence words and video slot
+            pace = 1.0
+            if target_duration and target_duration > 0:
+                words = text.split()
+                # Average natural speaking rate for Indian languages: ~2.5 words/second
+                est_natural_duration = len(words) / 2.5
+                required_pace = est_natural_duration / target_duration
+                # Smoothly clamp between 0.90x (calm) and 1.25x (brisk)
+                pace = round(max(0.90, min(1.25, required_pace)), 2)
+                logger.info(f"Dynamic pace for segment: {pace}x (target={target_duration:.2f}s, words={len(words)})")
+
+            # 2. Generate Raw Audio with dynamic pace natively in Sarvam / Edge
+            loop.run_until_complete(self._generate_with_retry(text, raw_path, pace=pace))
             
             if not os.path.exists(raw_path):
                 raise RuntimeError("Audio file was not created")
 
-            # 2. Normalize Audio
+            # 3. Normalize Audio
             normalized_path = output_path.replace(".mp3", "_norm.mp3")
             self._normalize_audio(raw_path, normalized_path)
             
-            # 3. Check Duration & Adjust if CRITICAL
+            # 4. Check Duration & Micro-adjust only if needed
             duration = self._get_audio_duration(normalized_path)
             final_path = output_path
             
             if target_duration and duration > 0:
-                diff = duration - target_duration
                 ratio = duration / target_duration
-                
-                # Logic:
-                # If audio is much longer (e.g. > 20% longer), we need to speed up.
-                # But we CAP speedup at 1.25x to avoid robotic artifacts.
-                # If audio is shorter, we generally DON'T slow down (leave gaps).
-                
-                if ratio > 1.05: # Only if > 5% longer
-                    speed_factor = ratio
-                    
-                    # Cap speedup
-                    if speed_factor > 1.25:
-                        logger.warning(f"Audio required {speed_factor:.2f}x speedup. Capping at 1.25x to preserve quality.")
-                        speed_factor = 1.25
-                        # Result will be longer than target_duration, causing slight desync.
-                        # This matches requirement: "Allow slight mismatch"
-                    
-                    # Apply tempo filter via ffmpeg
-                    # tempo filter > 1.0 speeds up
-                    filter_str = f"atempo={speed_factor}"
-                    
+                # Only apply secondary atempo if still over by > 10%
+                if ratio > 1.10:
+                    speed_factor = min(1.15, ratio)
+                    logger.info(f"Fine-tuning audio tempo by {speed_factor:.2f}x to fit video slot perfectly.")
+                    filter_str = f"atempo={speed_factor:.2f}"
                     cmd = [
                         "ffmpeg", "-i", normalized_path,
                         "-filter:a", filter_str,
                         "-y", final_path
                     ]
                     subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                    
-                    # Recalculate duration
                     duration = self._get_audio_duration(final_path)
                 else:
-                    # No speed change needed
                     import shutil
                     shutil.move(normalized_path, final_path)
             else:
-                 import shutil
-                 shutil.move(normalized_path, final_path)
+                import shutil
+                shutil.move(normalized_path, final_path)
 
             # Cleanup
             if os.path.exists(raw_path): os.remove(raw_path)

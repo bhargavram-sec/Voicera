@@ -5,11 +5,16 @@ Handles text translation while preserving technical terms.
 """
 
 import re
+import os
 import logging
 from typing import List, Dict, Tuple, Any
 import requests
+from dotenv import load_dotenv
 from deep_translator import GoogleTranslator, MyMemoryTranslator
 from utils.config import TECHNICAL_TERMS
+
+# Load environment variables
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -24,6 +29,7 @@ class TranslationEngine:
             source_lang: Source language code (e.g., 'en')
             target_lang: Target language code (e.g., 'hi')
         """
+        self.sarvam_api_key = os.getenv("SARVAM_API_KEY")
         # Normalize codes (e.g. 'en-US' -> 'en')
         self.source_lang = source_lang.split('-')[0].lower() if source_lang else 'auto'
         self.target_lang = target_lang.split('-')[0].lower()
@@ -99,10 +105,42 @@ class TranslationEngine:
     def _translate_text(self, text: str) -> str:
         """
         Translates text using multi-tier fallback:
+        0. Sarvam Mayura Translation API (Optimized for Indian languages)
         1. Google Web API (direct gtx endpoint - fast, reliable, no 429)
         2. MyMemoryTranslator
         3. deep-translator GoogleTranslator
         """
+        # Tier 0: Sarvam Mayura Translation API
+        if self.sarvam_api_key:
+            try:
+                src_code = f"{self.source_lang}-IN" if self.source_lang != 'auto' else 'en-IN'
+                tgt_code = f"{self.target_lang}-IN"
+                
+                resp = requests.post(
+                    'https://api.sarvam.ai/translate',
+                    headers={
+                        'api-subscription-key': self.sarvam_api_key,
+                        'Content-Type': 'application/json'
+                    },
+                    json={
+                        'input': text,
+                        'source_language_code': src_code,
+                        'target_language_code': tgt_code,
+                        'speaker_gender': 'Female',
+                        'mode': 'code-mixed',
+                        'model': 'mayura:v1'
+                    },
+                    timeout=15
+                )
+                if resp.status_code == 200:
+                    translated = resp.json().get('translated_text', '').strip()
+                    if translated:
+                        return translated
+                else:
+                    logger.warning(f"Sarvam translation error {resp.status_code}: {resp.text}")
+            except Exception as e:
+                logger.warning(f"Sarvam translation exception: {e}. Falling back to Google...")
+
         # Tier 1: Direct Google API endpoint
         try:
             params = {

@@ -5,8 +5,10 @@ Handles API routes and orchestrates the processing pipeline.
 """
 
 import os
-# Fix for PyTorch MPS float64 error
-os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 import uuid
 import threading
@@ -18,7 +20,7 @@ import shutil
 from utils.config import (
     UPLOAD_FOLDER, OUTPUT_FOLDER, TEMP_FOLDER, LANGUAGES
 )
-from processors.audio_extractor import extract_audio, get_media_duration
+from processors.audio_extractor import extract_audio, get_media_duration, detect_voice_gender
 from processors.transcriber import transcribe_audio
 from processors.translator import TranslationEngine
 from processors.tts_generator import TTSGenerator
@@ -71,6 +73,12 @@ def process_video_task(job_id, video_path, target_lang, voice_gender, sync_mode=
         audio_path = os.path.join(job_dir, "original.wav")
         extract_audio(video_path, audio_path)
         
+        # Auto-match speaker gender if set to 'auto' or not specified
+        if not voice_gender or voice_gender == "auto":
+            voice_gender = detect_voice_gender(audio_path)
+            logger.info(f"Auto-selected voice gender matching original speaker: '{voice_gender}'")
+        jobs[job_id]["detected_gender"] = voice_gender
+        
         # 2. Transcription
         jobs[job_id]["current_step"] = "Transcribing"
         jobs[job_id]["progress"] = 25
@@ -78,6 +86,15 @@ def process_video_task(job_id, video_path, target_lang, voice_gender, sync_mode=
         transcription_result = transcribe_audio(audio_path, source_lang=source_lang, model_size=model_size)
         source_lang = transcription_result["language"]
         segments = transcription_result["segments"]
+        
+        # Save actual transcribed words for the UI Transcript Confidence Heatmap (Zero extra credits)
+        real_words = []
+        for seg in segments:
+            for word in seg.get("text", "").split():
+                cw = word.strip(".,?!\"':;()[]{}")
+                if cw:
+                    real_words.append(cw)
+        jobs[job_id]["transcript_words"] = real_words
         
         # Save SRT
         srt_path = os.path.join(job_dir, "subtitles.srt")
@@ -143,7 +160,7 @@ def process_video_task(job_id, video_path, target_lang, voice_gender, sync_mode=
             seg_audio_path = os.path.join(job_dir, f"seg_{i}.mp3")
             
             # Pass target_duration to let TTS engine handle natural speed adjustment
-            # Use original duration (from Whisper) as target
+            # Use original duration (from Sarvam Saaras) as target
             target_dur = seg["duration"]
             
             # Generate natively pacing audio
@@ -220,7 +237,7 @@ def upload_video():
         
     file = request.files['video']
     target_lang = request.form.get('language', 'hi')
-    voice_gender = request.form.get('gender', 'female')
+    voice_gender = request.form.get('gender', 'auto')
     # Capture options
     sync_mode = request.form.get('sync_mode') == 'true'
     source_lang = request.form.get('source_lang')
@@ -263,7 +280,7 @@ def upload_url():
         
     url = data.get('url')
     target_lang = data.get('language', 'hi')
-    voice_gender = data.get('gender', 'female')
+    voice_gender = data.get('gender', 'auto')
     # Capture sync_mode
     sync_mode = data.get('sync_mode', False)
     source_lang = data.get('source_lang')

@@ -1,5 +1,4 @@
 Flask>=3.1.0
-git+https://github.com/openai/whisper.git
 edge-tts>=7.3.1
 deep-translator>=1.11.4
 numpy

@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 def extract_audio(video_path: str, output_path: str) -> str:
     """
     Extract audio from video using FFmpeg.
-    Converts to WAV format, 16kHz, mono channel for best compatibility with Whisper.
+    Converts to WAV format, 16kHz, mono channel for best compatibility with Sarvam Saaras STT.
 
     Args:
         video_path: Absolute path to the input video file.
@@ -103,6 +103,54 @@ def get_media_duration(file_path: str) -> float:
     except Exception as e:
         logger.warning(f"Failed to get duration for {file_path}: {e}")
         return 0.0
+
+def detect_voice_gender(audio_path: str) -> str:
+    """
+    Detect whether the speaker is male or female based on fundamental frequency (pitch F0).
+    Average male pitch: 85 - 160 Hz (threshold ~165 Hz).
+    Average female pitch: 165 - 260 Hz.
+    Runs locally in milliseconds via scipy with zero GPU/cloud usage.
+    """
+    try:
+        import numpy as np
+        import scipy.io.wavfile as wav
+
+        sample_rate, data = wav.read(audio_path)
+        if len(data.shape) > 1:
+            data = data.mean(axis=1)
+
+        # Autocorrelation pitch estimation on 30ms frames
+        frame_len = int(sample_rate * 0.03)
+        pitches = []
+
+        min_lag = int(sample_rate / 320)  # ~320 Hz max
+        max_lag = int(sample_rate / 75)   # ~75 Hz min
+
+        # Sample across the audio
+        step = max(1, len(data) // 100)
+        for i in range(0, len(data) - frame_len, step):
+            frame = data[i:i + frame_len].astype(float)
+            frame -= np.mean(frame)
+            if np.max(np.abs(frame)) < 400:  # silence / background noise
+                continue
+            corr = np.correlate(frame, frame, mode='full')
+            corr = corr[len(corr)//2:]
+            
+            if len(corr) > max_lag:
+                peak_lag = min_lag + np.argmax(corr[min_lag:max_lag])
+                if corr[peak_lag] > 0.35 * corr[0]:
+                    pitch = sample_rate / peak_lag
+                    pitches.append(pitch)
+
+        if pitches:
+            median_pitch = float(np.median(pitches))
+            gender = "male" if median_pitch < 165 else "female"
+            logger.info(f"Detected voice pitch: {median_pitch:.1f} Hz -> Auto-selected gender: '{gender}'")
+            return gender
+    except Exception as e:
+        logger.warning(f"Voice gender detection failed: {e}. Defaulting to male.")
+    
+    return "male"
 
 if __name__ == "__main__":
     pass
