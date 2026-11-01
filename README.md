@@ -18,7 +18,7 @@
   * Automatically matches male speakers to male voices and female speakers to female voices, with manual override support.
 
 * **🎯 Natural Loanword Preservation (400+ Words)**:
-  * Protects everyday colloquial English nouns (`school`, `phone`, `computer`, `office`, `bus`, `pen`, `doctor`, `exam`) using regex mask-and-restore tokens so sentences stay colloquial and relatable (e.g., *"మా school లో"* instead of *"మా పాఠశాలలో"*).
+  * Protects everyday colloquial English nouns (`school`, `phone`, `computer`, `office`, `bus`, `pen`, `doctor`, `exam`) using regex mask-and-restore tokens so sentences stay colloquial and relatable.
 
 * **⏱️ Dynamic Sentence-Level Pacing**:
   * Dynamically calculates target speaking rates per sentence based on word count and video time slot, adapting Bulbul's synthesis speed natively rather than forcing robotic post-filter speedups.
