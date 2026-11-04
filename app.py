@@ -342,6 +342,4 @@ def download_file(filename):
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 9090))
-    # Production (Render/Docker) binds 0.0.0.0; local Mac binds strictly to 127.0.0.1 (single address)
-    host = "0.0.0.0" if os.environ.get("PORT") else "127.0.0.1"
-    app.run(host=host, port=port, debug=False)
+    app.run(host="0.0.0.0", port=port, debug=False)
