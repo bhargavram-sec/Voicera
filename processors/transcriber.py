@@ -284,19 +284,20 @@ def transcribe_audio(audio_path: str, source_lang: str = None, model_size: str =
     """
     Unified transcription entrypoint.
     Checks DUBBING_ENGINE ('sarvam', 'groq', or 'dummy').
+    Defaults to 'sarvam' on production (Render), while allowing local override to 'groq'.
     """
-    engine = os.getenv("DUBBING_ENGINE", "groq").strip().lower()
+    engine = os.getenv("DUBBING_ENGINE", "sarvam").strip().lower()
     sarvam_key = os.getenv("SARVAM_API_KEY", SARVAM_API_KEY)
     groq_key = os.getenv("GROQ_API_KEY", GROQ_API_KEY)
     
-    # Tier 1: Production Sarvam AI pipeline
-    if engine == "sarvam" and sarvam_key:
+    # Tier 1: Production Sarvam AI pipeline (Default on Render/production if key exists)
+    if (engine == "sarvam" or not groq_key) and sarvam_key:
         try:
             return transcribe_audio_sarvam(audio_path, source_lang=source_lang)
         except Exception as e:
             logger.warning(f"Sarvam STT failed: {e}. Falling back to Groq/Dummy STT.")
             
-    # Tier 2: Groq Cloud API (Free, fast cloud Whisper large-v3)
+    # Tier 2: Groq Cloud API (Free, fast cloud Whisper large-v3 for local Mac development)
     if (engine == "groq" or not sarvam_key) and groq_key:
         try:
             return transcribe_audio_groq(audio_path, source_lang=source_lang)
