@@ -15,6 +15,9 @@ logger = logging.getLogger(__name__)
 SARVAM_API_KEY = os.getenv("SARVAM_API_KEY")
 SARVAM_STT_URL = "https://api.sarvam.ai/speech-to-text"
 
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+GROQ_STT_URL = "https://api.groq.com/openai/v1/audio/transcriptions"
+
 def format_timestamp(seconds: float) -> str:
     """Convert seconds to SRT timestamp format (HH:MM:SS,mmm)"""
     milliseconds = int((seconds % 1) * 1000)
@@ -148,6 +151,85 @@ def transcribe_audio_sarvam(audio_path: str, source_lang: str = None) -> Dict[st
         "engine": "sarvam"
     }
 
+def transcribe_audio_groq(audio_path: str, source_lang: str = None) -> Dict[str, Any]:
+    """
+    Transcribe audio file using Groq Cloud Whisper API (whisper-large-v3).
+    Runs 100% in the cloud on Groq LPUs (ultra-fast ~0.5s, 0 local compute/RAM).
+    """
+    api_key = os.getenv("GROQ_API_KEY", GROQ_API_KEY)
+    if not api_key:
+        raise RuntimeError("GROQ_API_KEY is not configured in .env or environment")
+
+    logger.info(f"Starting Groq Cloud Whisper STT for {audio_path} (source_lang={source_lang})")
+
+    data = {
+        "model": "whisper-large-v3",
+        "response_format": "verbose_json"
+    }
+    if source_lang:
+        code = source_lang.split('-')[0].lower()
+        data["language"] = code
+
+    with open(audio_path, "rb") as f:
+        files = {
+            "file": (os.path.basename(audio_path), f, "audio/wav")
+        }
+        headers = {
+            "Authorization": f"Bearer {api_key}"
+        }
+        response = requests.post(
+            GROQ_STT_URL,
+            headers=headers,
+            files=files,
+            data=data,
+            timeout=60
+        )
+
+    if response.status_code != 200:
+        logger.error(f"Groq STT failed with code {response.status_code}: {response.text}")
+        raise RuntimeError(f"Groq STT API error: {response.text}")
+
+    res_json = response.json()
+    transcript = res_json.get("text", "").strip()
+    detected_lang = res_json.get("language", "en")
+    raw_segments = res_json.get("segments", [])
+
+    segments = []
+    if raw_segments:
+        for idx, seg in enumerate(raw_segments):
+            start = round(float(seg.get("start", 0.0)), 2)
+            end = round(float(seg.get("end", 0.0)), 2)
+            text = seg.get("text", "").strip()
+            if not text:
+                continue
+            segments.append({
+                "id": idx,
+                "start": start,
+                "end": end,
+                "text": text,
+                "words": text.split()
+            })
+
+    if not segments and transcript:
+        from processors.audio_extractor import get_media_duration
+        dur = get_media_duration(audio_path)
+        segments.append({
+            "id": 0,
+            "start": 0.0,
+            "end": round(dur if dur > 0 else 5.0, 2),
+            "text": transcript,
+            "words": transcript.split()
+        })
+
+    srt_content = generate_srt(segments)
+    logger.info(f"Groq Cloud STT complete. Transcribed {len(segments)} segments. Detected language: {detected_lang}")
+    return {
+        "language": detected_lang,
+        "segments": segments,
+        "srt": srt_content,
+        "engine": "groq"
+    }
+
 def transcribe_audio_dummy(audio_path: str, source_lang: str = None) -> Dict[str, Any]:
     """
     Zero-credit dummy transcription engine for development and testing.
@@ -201,16 +283,26 @@ def transcribe_audio_dummy(audio_path: str, source_lang: str = None) -> Dict[str
 def transcribe_audio(audio_path: str, source_lang: str = None, model_size: str = "small") -> Dict[str, Any]:
     """
     Unified transcription entrypoint.
-    Checks DUBBING_ENGINE ('sarvam' vs 'dummy').
+    Checks DUBBING_ENGINE ('sarvam', 'groq', or 'dummy').
     """
-    engine = os.getenv("DUBBING_ENGINE", "dummy").strip().lower()
-    has_key = bool(os.getenv("SARVAM_API_KEY", SARVAM_API_KEY))
+    engine = os.getenv("DUBBING_ENGINE", "groq").strip().lower()
+    sarvam_key = os.getenv("SARVAM_API_KEY", SARVAM_API_KEY)
+    groq_key = os.getenv("GROQ_API_KEY", GROQ_API_KEY)
     
-    if engine == "sarvam" and has_key:
+    # Tier 1: Production Sarvam AI pipeline
+    if engine == "sarvam" and sarvam_key:
         try:
             return transcribe_audio_sarvam(audio_path, source_lang=source_lang)
         except Exception as e:
-            logger.warning(f"Sarvam STT failed: {e}. Falling back to Dummy STT to save credits/pipeline.")
+            logger.warning(f"Sarvam STT failed: {e}. Falling back to Groq/Dummy STT.")
+            
+    # Tier 2: Groq Cloud API (Free, fast cloud Whisper large-v3)
+    if (engine == "groq" or not sarvam_key) and groq_key:
+        try:
+            return transcribe_audio_groq(audio_path, source_lang=source_lang)
+        except Exception as e:
+            logger.warning(f"Groq STT failed: {e}. Falling back to Dummy STT.")
             return transcribe_audio_dummy(audio_path, source_lang=source_lang)
-    else:
-        return transcribe_audio_dummy(audio_path, source_lang=source_lang)
+            
+    # Tier 3: Zero-credit dummy STT fallback
+    return transcribe_audio_dummy(audio_path, source_lang=source_lang)
