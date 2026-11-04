@@ -47,16 +47,20 @@ class TTSGenerator:
         if not self.lang_config:
             raise ValueError(f"Unsupported language: {language_code}")
             
-        # Sarvam AI Config (Primary for Indian languages)
+        # Sarvam AI Config (Primary when DUBBING_ENGINE is 'sarvam')
         self.sarvam_api_key = os.getenv("SARVAM_API_KEY")
-        self.use_sarvam = bool(self.sarvam_api_key)
+        engine = os.getenv("DUBBING_ENGINE", "dummy").strip().lower()
+        self.use_sarvam = bool(self.sarvam_api_key) and (engine == "sarvam")
         if self.use_sarvam:
             logger.info(f"Initialized Sarvam AI Bulbul TTS for {language_code} (gender: {voice_gender})")
             
-        # Edge TTS Voice (Fallback or international languages)
+        # Edge TTS Voice (Used for Dummy mode, fallback, or international languages)
         self.edge_voice = self.lang_config["voices"].get(voice_gender)
         if not self.edge_voice:
             self.edge_voice = list(self.lang_config["voices"].values())[0]
+            
+        if not self.use_sarvam:
+            logger.info(f"Initialized Edge TTS (Free/Dummy Engine) for {language_code} with voice: {self.edge_voice}")
             
         # ElevenLabs Config
         self.use_elevenlabs = False

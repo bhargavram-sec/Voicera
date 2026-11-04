@@ -110,8 +110,9 @@ class TranslationEngine:
         2. MyMemoryTranslator
         3. deep-translator GoogleTranslator
         """
-        # Tier 0: Sarvam Mayura Translation API
-        if self.sarvam_api_key:
+        # Tier 0: Sarvam Mayura Translation API (active when DUBBING_ENGINE is 'sarvam')
+        engine = os.getenv("DUBBING_ENGINE", "dummy").strip().lower()
+        if self.sarvam_api_key and engine == "sarvam":
             try:
                 src_code = f"{self.source_lang}-IN" if self.source_lang != 'auto' else 'en-IN'
                 tgt_code = f"{self.target_lang}-IN"
