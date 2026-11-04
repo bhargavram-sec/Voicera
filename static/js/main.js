@@ -315,7 +315,7 @@ function resetHM() {
     hmRendered = false;
     if (realHmTimer) clearInterval(realHmTimer);
     const hmContainer = document.getElementById('hm-words');
-    if (hmContainer) hmContainer.innerHTML = '<span style="font-size:.68rem;color:rgba(255,255,255,.3);font-style:italic">Transcribing audio with Sarvam Saaras…</span>';
+    if (hmContainer) hmContainer.innerHTML = '<span style="font-size:.68rem;color:rgba(255,255,255,.3);font-style:italic">Transcribing audio…</span>';
     const pctEl = document.getElementById('mn-pct');
     if (pctEl) pctEl.textContent = '—';
 }
